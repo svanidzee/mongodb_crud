@@ -1,101 +1,60 @@
 const { MongoClient } = require('mongodb');
 require('dotenv').config();
 
-async function main() {
-  const uri = process.env.MONGODB_URI;
+const uri = process.env.MONGODB_URI;
+const client = new MongoClient(uri);
 
-  const client = new MongoClient(uri);
-
+async function run() {
   try {
-    await client.connect();
+    await findOneListingByName(client);
 
-    // Find "Infinite Views"
-    await findOneListingByName(client, 'Infinite Views');
-
-    // Find 'Ribeira Charming Duplex' or "THE Place to See Sydney's FIREWORKS" via in operator
-    await findOneListingByInOperator(client, [
-      'Ribeira Charming Duplex',
-      "THE Place to See Sydney's FIREWORKS"
-    ]);
-
-    // Find up to 5 listings with at least 4 bedrooms and at least 2 bathrooms
-    // If you recently ran create.js, a listing named Beautiful Beach House should be included in the results
-    await findListings(client, {
-      minimumNumberOfBedrooms: 4,
-      minimumNumberOfBathrooms: 2,
-      maximumNumberOfResults: 5
-    });
-  } catch (e) {
-    console.log(e);
+    await findOneListingByInOperator(client);
   } finally {
-    await client.close;
+    await client.close();
   }
 }
+run().catch(console.dir);
 
-main().catch(console.error);
+async function findOneListingByInOperator(client) {
+  const database = client.db('sample_airbnb');
+  const rooms = database.collection('listingsAndReviews');
 
-async function findOneListingByName(client, nameOfListing) {
-  const result = await client
-    .db('sample_airbnb')
-    .collection('listingsAndReviews')
-    .findOne({ name: nameOfListing });
+  const query = {
+    name: {
+      $in: ['Ribeira Charming Duplex', "THE Place to See Sydney's FIREWORKS"]
+    }
+  };
 
-  if (result) {
-    console.log(
-      `Found a listing in the collection with the name '${nameOfListing}':`
-    );
-    console.log(result);
-  } else {
-    console.log(`No listings found with the name '${nameOfListing}'`);
+  // Include only the `name` field in each returned document
+  const options = {
+    projection: { _id: 0, name: 1 }
+  };
+
+  const cursor = rooms.find(query, options);
+
+  if ((await cursor.count()) === 0) {
+    console.log('No documents found!');
   }
+
+  await cursor.forEach(console.dir);
 }
 
-async function findOneListingByInOperator(client, nameOfListingArr) {
-  const result = client
-    .db('sample_airbnb')
-    .collection('listingsAndReviews')
-    .find({ name: { $in: nameOfListingArr } });
-  const allValues = await result.toArray();
-  allValues.forEach(({ name }) => console.log(name)); // "Ribeira Charming Duplex", "THE Place to See Sydney's FIREWORKS"
-}
+async function findOneListingByName(client) {
+  const database = client.db('sample_airbnb');
+  const rooms = database.collection('listingsAndReviews');
 
-async function findListings(
-  client,
-  {
-    minimumNumberOfBedrooms = 0,
-    minimumNumberOfBathrooms = 0,
-    maximumNumberOfResults = Number.MAX_SAFE_INTEGER
-  } = {}
-) {
-  const cursor = client
-    .db('sample_airbnb')
-    .collection('listingsAndReviews')
-    .find({
-      bedrooms: { $gte: minimumNumberOfBedrooms },
-      bathrooms: { $gte: minimumNumberOfBathrooms }
-    })
-    .sort({ last_review: -1 })
-    .limit(maximumNumberOfResults);
+  const query = { name: 'Ribeira Charming Duplex' };
 
-  // Store the results in an array
-  const results = await cursor.toArray();
-  if (results.length > 0) {
-    console.log(
-      `Found listing(s) with at least ${minimumNumberOfBedrooms} bedrooms and ${minimumNumberOfBathrooms} bathrooms:`
-    );
-    results.forEach((result, i) => {
-      const date = new Date(result.last_review).toDateString();
+  // Include only the `name` field in each returned document
+  const options = {
+    projection: { _id: 0, name: 1 }
+  };
 
-      console.log();
-      console.log(`${i + 1}. name: ${result.name}`);
-      console.log(`   _id: ${result._id}`);
-      console.log(`   bedrooms: ${result.bedrooms}`);
-      console.log(`   bathrooms: ${result.bathrooms}`);
-      console.log(`   most recent review date: ${date}`);
-    });
-  } else {
-    console.log(
-      `No listings found with at least ${minimumNumberOfBedrooms} bedrooms and ${minimumNumberOfBathrooms} bathrooms`
-    );
+  const cursor = rooms.find(query, options);
+
+  if ((await cursor.count()) === 0) {
+    console.log('No documents found!');
   }
+
+  await cursor.forEach(console.dir);
 }
