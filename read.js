@@ -12,6 +12,12 @@ async function main() {
     // Find "Infinite Views"
     await findOneListingByName(client, 'Infinite Views');
 
+    // Find 'Ribeira Charming Duplex' or "THE Place to See Sydney's FIREWORKS" via in operator
+    await findOneListingByInOperator(client, [
+      'Ribeira Charming Duplex',
+      "THE Place to See Sydney's FIREWORKS"
+    ]);
+
     // Find up to 5 listings with at least 4 bedrooms and at least 2 bathrooms
     // If you recently ran create.js, a listing named Beautiful Beach House should be included in the results
     await findListings(client, {
@@ -42,6 +48,15 @@ async function findOneListingByName(client, nameOfListing) {
   } else {
     console.log(`No listings found with the name '${nameOfListing}'`);
   }
+}
+
+async function findOneListingByInOperator(client, nameOfListingArr) {
+  const result = client
+    .db('sample_airbnb')
+    .collection('listingsAndReviews')
+    .find({ name: { $in: nameOfListingArr } });
+  const allValues = await result.toArray();
+  allValues.forEach(({ name }) => console.log(name)); // "Ribeira Charming Duplex", "THE Place to See Sydney's FIREWORKS"
 }
 
 async function findListings(
