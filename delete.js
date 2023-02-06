@@ -3,15 +3,12 @@ require('dotenv').config();
 
 async function main() {
   const uri = process.env.MONGODB_URI;
-
   const client = new MongoClient(uri);
 
   try {
     await client.connect();
-    // DELETE ONE
-    await deleteListingByName(client, 'Cozy Cottage');
-    // DELETE MANY
-    await deleteListings(client, new Date('2019-02-15'));
+    await deleteListingByName(client);
+    await deleteListings(client);
   } catch (e) {
     console.log(e);
   } finally {
@@ -21,18 +18,28 @@ async function main() {
 
 main().catch(console.error);
 
-async function deleteListingByName(client, nameOfListing) {
-  const result = await client
-    .db('sample_airbnb')
-    .collection('listingsAndReviews')
-    .deleteOne({ name: nameOfListing });
-  console.log(`${result.deletedCount} document(s) was/were deleted.`);
+async function deleteListingByName(client) {
+  const database = client.db('sample_mflix');
+  const movies = database.collection('movies');
+
+  // Query for a movie that has title "Annie Hall"
+  const query = { title: 'Annie Hall' };
+  const result = await movies.deleteOne(query);
+
+  if (result.deletedCount === 1) {
+    console.log('Successfully deleted one document.');
+  } else {
+    console.log('No documents matched the query. Deleted 0 documents.');
+  }
 }
 
-async function deleteListings(client, date) {
-  const result = await client
-    .db('sample_airbnb')
-    .collection('listingsAndReviews')
-    .deleteMany({ last_scraped: { $lt: date } });
-  console.log(`${result.deletedCount} document(s) was/were deleted.`);
+async function deleteListings(client) {
+  const database = client.db('sample_mflix');
+  const movies = database.collection('movies');
+
+  // Query for all movies with a title containing the string "Santa"
+  const query = { title: { $regex: 'Santa' } };
+  const result = await movies.deleteMany(query);
+
+  console.log('Deleted ' + result.deletedCount + ' documents');
 }
